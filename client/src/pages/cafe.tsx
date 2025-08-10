@@ -12,12 +12,17 @@ export default function Cafe() {
     if (storedUser) {
       setUsername(storedUser);
       setIsAuthenticated(true);
+  // Fire welcome for returning session
+  fetch('/api/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: storedUser }) }).catch(()=>{});
     }
   }, []);
 
   const handleAuthenticated = (user: string) => {
     setUsername(user);
     setIsAuthenticated(true);
+  localStorage.setItem('neural_brew_user', user);
+    fetch('/api/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user }) })
+      .catch(()=>{});
   };
 
   const handleLogout = () => {

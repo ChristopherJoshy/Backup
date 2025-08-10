@@ -92,6 +92,10 @@ class MemoryStorageService {
     this.recipes = [];
     this.votes.clear();
   }
+
+  async userHasHistory(username: string): Promise<boolean> {
+    return this.messages.some(m => m.username.toLowerCase() === username.toLowerCase());
+  }
 }
 
 export const memoryStorage = new MemoryStorageService();

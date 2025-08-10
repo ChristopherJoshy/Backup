@@ -71,7 +71,7 @@ export default function HelpModal({ onClose }: HelpModalProps) {
         </div>
         
         <div className={`mt-4 pt-4 border-t border-terminal-green text-terminal-dark-green ${isMobile ? 'text-xs' : 'text-xs'}`}>
-          <div>• BREW_BOT generates new recipes every 60 seconds automatically</div>
+          <div>• Generate recipes manually with /recipe [ingredients]</div>
           <div>• Use ▲/▼ arrows or click to vote on recipes</div>
           <div>• All messages sync in real-time via Firebase</div>
           {!isMobile && <div>• Use UP/DOWN arrows for command history</div>}

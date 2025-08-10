@@ -124,6 +124,16 @@ export class MongoService {
     await recipesCol!.deleteMany({});
     await votesCol!.deleteMany({});
   }
+
+  async userHasHistory(username: string): Promise<boolean> {
+    try {
+      this.ensure();
+      const doc = await messagesCol!.findOne({ username }, { projection: { _id: 1 } });
+      return !!doc;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const mongoService = new MongoService();

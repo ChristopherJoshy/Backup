@@ -44,7 +44,7 @@
 
 ## 📝 Project Description  
 Neural Brew is a retro-futuristic terminal-style café chatroom where users from around the world can connect in real-time.  
-An AI-powered Recipe Bot serves fresh, glitch-themed coffee and drink recipes every 60 seconds using the Gemini API.  
+An AI-powered Recipe Bot generates glitch-themed coffee and drink recipes on demand using the Gemini API (previous 60s auto-generation removed).  
 With a nostalgic hacker aesthetic, real-time WebSocket chat, and a menu that never stops evolving, Neural Brew blends creativity, conversation, and caffeine into one immersive online experience.  
 
 ---

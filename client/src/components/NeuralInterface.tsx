@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFirebaseMessages } from '../hooks/useFirebase';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
@@ -13,7 +13,7 @@ interface NeuralInterfaceProps {
 export default function NeuralInterface({ username, onLogout }: NeuralInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [nextBrewCountdown, setNextBrewCountdown] = useState(60);
+  // Auto-brew removed
   
   const { messages, loading, error } = useFirebaseMessages();
   const { toast } = useToast();
@@ -26,15 +26,7 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
     }
   }, [messages]);
 
-  // Countdown timer for next auto-brew
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const seconds = 60 - (new Date().getSeconds());
-      setNextBrewCountdown(seconds === 60 ? 0 : seconds);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // Removed countdown effect
 
   const handleSendMessage = async (message: string, isRecipe: boolean) => {
     try {
@@ -43,6 +35,17 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
       let content = message;
       if (isRecipe && !message.startsWith('/recipe')) {
         content = `/recipe ${message}`;
+      }
+
+      const normalized = message.trim().toLowerCase();
+      if (normalized === '/clear') {
+        try {
+          await apiRequest('POST', '/api/messages/clear', {});
+        } catch (e) {
+          toast({ title: 'Clear failed', description: 'Could not clear messages', variant: 'destructive' });
+        }
+        setIsLoading(false);
+        return;
       }
 
       // Send message to server
@@ -62,9 +65,9 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
       }, 500); // Small delay to allow server processing
 
       // Handle special commands
-      if (message === '/help') {
+  if (normalized === '/help') {
         setShowHelp(true);
-      } else if (message === '/exit') {
+  } else if (normalized === '/exit') {
         onLogout();
       }
     } catch (error) {
@@ -83,11 +86,7 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
     return now.toISOString().substr(0, 10) + ' - ' + now.toTimeString().substr(0, 8);
   };
 
-  const formatCountdown = () => {
-    const minutes = Math.floor(nextBrewCountdown / 60);
-    const seconds = nextBrewCountdown % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
+  // Removed countdown formatter
 
   if (loading) {
     return (
@@ -205,9 +204,7 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
             <span className="text-terminal-yellow">TAB</span><span>Complete</span>
             <span className="text-terminal-yellow">ESC</span><span>Clear</span>
           </div>
-          <div className="text-terminal-dark-green">
-            Next auto-brew in: <span className="text-terminal-yellow">{formatCountdown()}</span>
-          </div>
+          <div className="text-terminal-dark-green">Manual recipe generation</div>
         </div>
       </footer>
 
@@ -232,7 +229,7 @@ export default function NeuralInterface({ username, onLogout }: NeuralInterfaceP
             </div>
             
             <div className="mt-4 pt-4 border-t border-terminal-green text-xs text-terminal-dark-green">
-              <div>• BREW_BOT generates new recipes every 60 seconds automatically</div>
+              <div>• Use /recipe [ingredients] to generate a recipe manually</div>
               <div>• Use ▲/▼ arrows to vote on recipes</div>
               <div>• All messages sync in real-time via Firebase</div>
               <div>• Switch between TEXT and RECIPE modes with the buttons</div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFirebaseMessages } from '../hooks/useFirebase';
 import ChatMessage from './ChatMessage';
 import { apiRequest } from '../lib/queryClient';
@@ -15,7 +15,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [nextBrewCountdown, setNextBrewCountdown] = useState(60);
+  // Auto-brew feature removed per request
   
   const { messages, loading, error } = useFirebaseMessages();
   const { toast } = useToast();
@@ -29,15 +29,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
     }
   }, [messages]);
 
-  // Countdown timer for next auto-brew
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const seconds = 60 - (new Date().getSeconds());
-      setNextBrewCountdown(seconds === 60 ? 0 : seconds);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // Removed: auto-brew countdown effect
 
   // Focus command input
   useEffect(() => {
@@ -52,7 +44,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
     if (!trimmedCommand) return;
 
     // Add to history
-    setCommandHistory(prev => [...prev, trimmedCommand]);
+  setCommandHistory((prev: string[]) => [...prev, trimmedCommand]);
     setHistoryIndex(-1);
 
     // Handle different commands
@@ -62,8 +54,12 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
       return;
     }
 
-    if (trimmedCommand === '/clear') {
-      // Clear would be handled by filtering messages
+    if (trimmedCommand.toLowerCase() === '/clear') {
+      try {
+        await apiRequest('POST', '/api/messages/clear', {});
+      } catch (e) {
+        toast({ title: 'Clear failed', description: 'Could not clear messages', variant: 'destructive' });
+      }
       setCommand('');
       return;
     }
@@ -144,11 +140,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
     return now.toISOString().substr(0, 10) + ' - ' + now.toTimeString().substr(0, 8);
   };
 
-  const formatCountdown = () => {
-    const minutes = Math.floor(nextBrewCountdown / 60);
-    const seconds = nextBrewCountdown % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
+  // Removed: countdown formatter
 
   if (loading) {
     return (
@@ -272,9 +264,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
             <span className="text-terminal-yellow">↑↓</span><span>History</span>
             <span className="text-terminal-yellow">ESC</span><span>Clear</span>
           </div>
-          <div className="text-terminal-dark-green">
-            Next auto-brew in: <span className="text-terminal-yellow">{formatCountdown()}</span>
-          </div>
+          <div className="text-terminal-dark-green">Manual recipe generation active</div>
         </div>
       </footer>
 
@@ -299,7 +289,7 @@ export default function TerminalInterface({ username, onLogout }: TerminalInterf
             </div>
             
             <div className="mt-4 pt-4 border-t border-terminal-green text-xs text-terminal-dark-green">
-              <div>• BREW_BOT generates new recipes every 60 seconds automatically</div>
+              <div>• Type /recipe [ingredients] to generate a recipe on demand</div>
               <div>• Use ▲/▼ arrows to vote on recipes</div>
               <div>• All messages sync in real-time via Firebase</div>
               <div>• Press ESC to close this help menu</div>

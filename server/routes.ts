@@ -32,28 +32,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auto-generate recipe endpoint expected by some client code
-  app.post('/api/recipes/auto-generate', async (_req, res) => {
+  // Removed: auto-generate recipe endpoint per request
+  // Welcome endpoint: emits a system message when a user connects (new vs returning)
+  app.post('/api/welcome', async (req, res) => {
+    const { username } = req.body as { username?: string };
+    if (!username || !username.trim()) return res.status(400).json({ error: 'Username required' });
+    const clean = username.trim();
+    let hasHistory = false;
     try {
-      const recipe = await geminiService.generateAutoRecipe();
-      let recipeId;
-      try {
-        recipeId = await mongoService.addRecipe({ ...recipe, createdBy: 'BREW_BOT' });
-      } catch {
-        recipeId = await memoryStorage.addRecipe({ ...recipe, createdBy: 'BREW_BOT' });
-      }
-      const recipeContent = formatRecipeMessage(recipe);
-      let messageId;
-      try {
-        messageId = await mongoService.addMessage({ username: '[BREW_BOT]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
-      } catch {
-        messageId = await memoryStorage.addMessage({ username: '[BREW_BOT]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
-      }
-      res.json({ id: recipeId, messageId, ...recipe, createdBy: 'BREW_BOT', timestamp: Date.now(), votes: 0 });
-    } catch (e) {
-      console.error('Error auto-generating recipe via endpoint:', e);
-      res.status(500).json({ error: 'Failed to auto-generate recipe' });
+      hasHistory = await mongoService.userHasHistory(clean);
+    } catch {
+      hasHistory = await memoryStorage.userHasHistory(clean);
     }
+    const content = hasHistory
+      ? `[SYSTEM] Welcome back, ${clean}! Your workstation context has been restored.`
+      : `[SYSTEM] New user ${clean} connected. Initializing environment...`;
+    try {
+      try {
+        await mongoService.addMessage({ username: '[SYSTEM]', content, type: 'system', isCommand: false });
+      } catch {
+        await memoryStorage.addMessage({ username: '[SYSTEM]', content, type: 'system', isCommand: false });
+      }
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to log welcome message' });
+    }
+    res.json({ welcomed: true, returning: hasHistory });
   });
   // Get recent messages
   app.get("/api/messages", async (req, res) => {
@@ -86,8 +89,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messageData = insertMessageSchema.parse(req.body);
 
-      // /clear command: wipe messages/recipes
-      if (messageData.content.trim() === '/clear') {
+      // /clear command (case-insensitive): wipe messages/recipes
+      const normalizedContent = messageData.content.trim().toLowerCase();
+      if (normalizedContent === '/clear') {
         try {
           try { await mongoService.clearAll(); } catch { await memoryStorage.clearAll(); }
           return res.json({ cleared: true });
@@ -96,8 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Check if it's a recipe command
-      if (messageData.content.startsWith('/recipe ')) {
+      // Check if it's a recipe command (case-insensitive)
+      if (normalizedContent.startsWith('/recipe ')) {
         const ingredients = messageData.content.substring(8).trim();
         
         // Add the user's command message
@@ -217,53 +221,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auto-generate recipe (for bot posting)
-  app.post("/api/auto-recipe", async (req, res) => {
-    try {
-      const recipe = await geminiService.generateAutoRecipe();
-      let recipeId;
-      try {
-        recipeId = await mongoService.addRecipe({
-          ...recipe,
-          createdBy: 'BREW_BOT'
-        });
-      } catch (e) {
-        recipeId = await memoryStorage.addRecipe({
-          ...recipe,
-          createdBy: 'BREW_BOT'
-        });
-      }
-
-      const recipeContent = `🤖 NEW AUTO-GENERATED RECIPE:\n${formatRecipeMessage(recipe)}`;
-      let messageId;
-      try {
-        messageId = await mongoService.addMessage({
-          username: '[BREW_BOT]',
-          content: recipeContent,
-          type: 'bot',
-          recipeId,
-          isCommand: false
-        });
-      } catch (e) {
-        messageId = await memoryStorage.addMessage({
-          username: '[BREW_BOT]',
-          content: recipeContent,
-          type: 'bot',
-          recipeId,
-          isCommand: false
-        });
-      }
-
-      res.json({ messageId, recipeId, recipe });
-    } catch (error) {
-      console.error('Auto recipe generation failed:', error);
-      res.status(500).json({ error: "Auto recipe generation failed" });
-    }
-  });
+  // Removed: legacy auto recipe endpoint
 
   const httpServer = createServer(app);
 
-  // Auto-brewing interval removed per request (was every 60s)
+  // Auto-brewing interval removed per request (was every 60s) – full feature disabled
 
   return httpServer;
 }

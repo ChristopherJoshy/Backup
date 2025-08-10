@@ -20,17 +20,4 @@ export const generateRecipe = async (ingredients: string, username: string): Pro
   return response.json();
 };
 
-export const generateAutoRecipe = async (): Promise<GeneratedRecipe> => {
-  const response = await fetch('/api/recipes/auto-generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to generate auto recipe');
-  }
-
-  return response.json();
-};
+// Auto recipe generation removed per request

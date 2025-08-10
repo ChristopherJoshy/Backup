@@ -43,38 +43,7 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
     }
   };
 
-  const generateAutoRecipe = async () => {
-    try {
-      const response = await fetch('/api/recipes/auto-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      if (response.ok) {
-        const recipe: Recipe = await response.json();
-        const recipeMessage = formatRecipeMessage(recipe);
-        
-        // Add bot message
-        const messageResponse = await fetch('/api/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: '[BREW_BOT]',
-            content: recipeMessage,
-            messageType: 'bot',
-            recipeId: recipe.id,
-          }),
-        });
-
-        if (messageResponse.ok) {
-          const newMessage = await messageResponse.json();
-          setMessages(prev => [...prev, newMessage]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to generate auto recipe:', error);
-    }
-  };
+  // Removed auto recipe generation helper
 
   const formatRecipeMessage = (recipe: Recipe) => {
     return `
@@ -111,9 +80,12 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
     </div>
   </div>
 </div>`;
-  };  const handleCommand = async (command: string) => {
+  };
+
+  const handleCommand = async (command: string) => {
+    const normalized = command.trim().toLowerCase();
     // Handle commands before posting if they are control commands
-    if (command === '/clear') {
+    if (normalized === '/clear') {
       try {
         const resp = await fetch('/api/messages/clear', { method: 'POST' });
         if (resp.ok) {
@@ -130,12 +102,12 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
     const messageResponse = await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(userMessage) });
     if (messageResponse.ok) { const newMessage = await messageResponse.json(); setMessages(prev => [...prev, newMessage]); }
 
-    if (command.startsWith('/recipe ')) {
+  if (normalized.startsWith('/recipe ')) {
       const ingredients = command.substring(8);
       await handleRecipeGeneration(ingredients);
-    } else if (command === '/help') {
+  } else if (normalized === '/help') {
       setShowHelp(true);
-    } else if (command === '/exit') {
+  } else if (normalized === '/exit') {
       onLogout();
     }
   };
