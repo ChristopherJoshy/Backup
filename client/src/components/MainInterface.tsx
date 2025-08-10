@@ -21,20 +21,13 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
     // Load initial messages
     loadMessages();
     
-    // Update time and countdown every second
+    // Update time every second (countdown now static since auto-brew disabled)
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-      setCountdown(60 - new Date().getSeconds());
     }, 1000);
-
-    // Auto-generate bot recipes every 60 seconds
-    const botInterval = setInterval(() => {
-      generateAutoRecipe();
-    }, 60000);
 
     return () => {
       clearInterval(interval);
-      clearInterval(botInterval);
     };
   }, []);
 
@@ -263,9 +256,7 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
             <span><span className="text-terminal-yellow">F3</span> Search</span>
             <span><span className="text-terminal-yellow">ESC</span> Clear</span>
           </div>
-          <div className={`text-terminal-dark-green ${isMobile ? 'text-center' : ''}`}>
-            Next auto-brew in: <span className="text-terminal-yellow">{formatCountdown(countdown)}</span>
-          </div>
+          <div className={`text-terminal-dark-green ${isMobile ? 'text-center' : ''}`}>Auto-brew disabled</div>
         </div>
       </footer>
 

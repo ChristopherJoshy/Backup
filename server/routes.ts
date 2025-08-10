@@ -263,16 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // Start auto-brewing bot (every 60 seconds)
-  setInterval(async () => {
-    try {
-  await fetch('http://localhost:5000/api/auto-recipe', {
-        method: 'POST',
-      });
-    } catch (error) {
-      console.error('Auto-recipe generation failed:', error);
-    }
-  }, 60000);
+  // Auto-brewing interval removed per request (was every 60s)
 
   return httpServer;
 }
