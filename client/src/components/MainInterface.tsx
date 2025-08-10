@@ -119,33 +119,29 @@ export default function MainInterface({ username, onLogout }: MainInterfaceProps
   </div>
 </div>`;
   };  const handleCommand = async (command: string) => {
-    // Add user message
-    const userMessage = {
-      username,
-      content: command,
-      type: 'user' as const,
-      recipeId: null,
-    };
-
-    const messageResponse = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userMessage),
-    });
-
-    if (messageResponse.ok) {
-      const newMessage = await messageResponse.json();
-      setMessages(prev => [...prev, newMessage]);
+    // Handle commands before posting if they are control commands
+    if (command === '/clear') {
+      try {
+        const resp = await fetch('/api/messages/clear', { method: 'POST' });
+        if (resp.ok) {
+          setMessages([]);
+        }
+      } catch (e) {
+        console.error('Failed to clear:', e);
+      }
+      return;
     }
 
-    // Handle commands
+    // Add user message (skip for /clear)
+    const userMessage = { username, content: command, type: 'user' as const, recipeId: null };
+    const messageResponse = await fetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(userMessage) });
+    if (messageResponse.ok) { const newMessage = await messageResponse.json(); setMessages(prev => [...prev, newMessage]); }
+
     if (command.startsWith('/recipe ')) {
       const ingredients = command.substring(8);
       await handleRecipeGeneration(ingredients);
     } else if (command === '/help') {
       setShowHelp(true);
-    } else if (command === '/clear') {
-      setMessages([]);
     } else if (command === '/exit') {
       onLogout();
     }

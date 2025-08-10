@@ -6,6 +6,55 @@ import { geminiService } from "./services/gemini";
 import { insertMessageSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Generate recipe (explicit endpoint used by some client code)
+  app.post('/api/recipes/generate', async (req, res) => {
+    try {
+      const { ingredients, username } = req.body as { ingredients?: string; username?: string };
+      const recipe = await geminiService.generateRecipe(ingredients);
+      let recipeId;
+      try {
+        recipeId = await mongoService.addRecipe({ ...recipe, createdBy: 'AI_BARISTA' });
+      } catch {
+        recipeId = await memoryStorage.addRecipe({ ...recipe, createdBy: 'AI_BARISTA' });
+      }
+      // Store an associated message (optional) for consistency
+      let messageId;
+      const recipeContent = formatRecipeMessage(recipe);
+      try {
+        messageId = await mongoService.addMessage({ username: '[AI_BARISTA]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
+      } catch {
+        messageId = await memoryStorage.addMessage({ username: '[AI_BARISTA]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
+      }
+      res.json({ id: recipeId, messageId, ...recipe, createdBy: 'AI_BARISTA', timestamp: Date.now(), votes: 0 });
+    } catch (e) {
+      console.error('Error generating recipe via endpoint:', e);
+      res.status(500).json({ error: 'Failed to generate recipe' });
+    }
+  });
+
+  // Auto-generate recipe endpoint expected by some client code
+  app.post('/api/recipes/auto-generate', async (_req, res) => {
+    try {
+      const recipe = await geminiService.generateAutoRecipe();
+      let recipeId;
+      try {
+        recipeId = await mongoService.addRecipe({ ...recipe, createdBy: 'BREW_BOT' });
+      } catch {
+        recipeId = await memoryStorage.addRecipe({ ...recipe, createdBy: 'BREW_BOT' });
+      }
+      const recipeContent = formatRecipeMessage(recipe);
+      let messageId;
+      try {
+        messageId = await mongoService.addMessage({ username: '[BREW_BOT]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
+      } catch {
+        messageId = await memoryStorage.addMessage({ username: '[BREW_BOT]', content: recipeContent, type: 'bot', recipeId, isCommand: false });
+      }
+      res.json({ id: recipeId, messageId, ...recipe, createdBy: 'BREW_BOT', timestamp: Date.now(), votes: 0 });
+    } catch (e) {
+      console.error('Error auto-generating recipe via endpoint:', e);
+      res.status(500).json({ error: 'Failed to auto-generate recipe' });
+    }
+  });
   // Get recent messages
   app.get("/api/messages", async (req, res) => {
     try {
@@ -22,10 +71,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear all messages & recipes
+  app.post('/api/messages/clear', async (_req, res) => {
+    try {
+      try { await mongoService.clearAll(); } catch { await memoryStorage.clearAll(); }
+      res.json({ cleared: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to clear messages' });
+    }
+  });
+
   // Send a new message
   app.post("/api/messages", async (req, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);
+
+      // /clear command: wipe messages/recipes
+      if (messageData.content.trim() === '/clear') {
+        try {
+          try { await mongoService.clearAll(); } catch { await memoryStorage.clearAll(); }
+          return res.json({ cleared: true });
+        } catch (e) {
+          return res.status(500).json({ error: 'Failed to clear messages' });
+        }
+      }
       
       // Check if it's a recipe command
       if (messageData.content.startsWith('/recipe ')) {

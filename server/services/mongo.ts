@@ -117,6 +117,13 @@ export class MongoService {
       await session.endSession();
     }
   }
+
+  async clearAll() {
+    this.ensure();
+    await messagesCol!.deleteMany({});
+    await recipesCol!.deleteMany({});
+    await votesCol!.deleteMany({});
+  }
 }
 
 export const mongoService = new MongoService();

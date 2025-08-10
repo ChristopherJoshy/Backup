@@ -18,7 +18,7 @@ export class GeminiService {
         ? `You must incorporate and use these specific ingredients provided by the user: ${userIngredients}. Build the recipe around these ingredients as the main components.`
         : 'using premium coffee ingredients and modern brewing techniques';
 
-      const prompt = `You are a professional barista at "Neural Brew" - a modern tech-themed café. Create a sophisticated coffee recipe ${ingredientsPrompt}.
+  const prompt = `You are a professional barista at "Neural Brew" - a modern tech-themed café. Create a sophisticated coffee recipe ${ingredientsPrompt}.
 
 IMPORTANT REQUIREMENTS:
 - Use ONLY real, purchasable coffee ingredients (coffee beans, milk, syrups, spices, etc.)
@@ -46,7 +46,13 @@ Examples of UNACCEPTABLE fake ingredients:
 - "Neural foam", "quantum milk", "digital compounds", "matrix syrup"
 - Any fictional or made-up ingredients
 
-Respond in JSON format:
+ADDITIONAL HARD REQUIREMENTS${userIngredients ? ` (USER INGREDIENTS PRESENT)` : ''}:
+${userIngredients ? `- Each of the user supplied ingredients MUST appear as its own item in the ingredients array (you may normalize wording e.g. 'milk' -> 'whole milk' but MUST still include it clearly)
+- Do NOT add completely unrelated flavors that would overshadow the user ingredients
+- Prefer 1:1 mapping of user ingredient tokens to array entries (split on commas or the word 'and')` : '- Keep ingredients realistic and purchasable'}
+- Never invent sci‑fi ingredients.
+
+Respond strictly in JSON format (no markdown, no commentary):
 {
   "name": "Professional recipe name with subtle tech theme",
   "ingredients": ["Real ingredient 1", "Real ingredient 2", "Real ingredient 3", ...],
@@ -84,6 +90,29 @@ Respond in JSON format:
       }
 
       const recipe: GeneratedRecipe = JSON.parse(rawJson);
+
+      // Post-validation to guarantee user ingredients inclusion
+      if (userIngredients) {
+        const requested = userIngredients
+          .split(/[,\n]/)
+          .map(s => s.trim())
+          .filter(Boolean);
+        if (requested.length) {
+          const lowerExisting = new Set(recipe.ingredients.map(i => i.toLowerCase()));
+          const missing: string[] = [];
+          for (const req of requested) {
+            // consider partial containment (e.g., 'milk' contained in 'whole milk')
+            const found = Array.from(lowerExisting).some(ex => ex.includes(req.toLowerCase()));
+            if (!found) missing.push(req);
+          }
+          if (missing.length) {
+            recipe.ingredients = [...missing.map(m => this.normalizeIngredient(m)), ...recipe.ingredients];
+            // Optional: adjust instructions to reference missing ones now included
+            recipe.instructions = `Use the following user ingredients first: ${missing.join(', ')}.\n` + recipe.instructions;
+          }
+        }
+      }
+
       return recipe;
     } catch (error) {
       console.error('Failed to generate recipe:', error);
@@ -92,7 +121,7 @@ Respond in JSON format:
         throw new Error('Gemini API key not configured and generation failed');
       }
       // Realistic fallback recipe with real ingredients
-      return {
+      const base: GeneratedRecipe = {
         name: "Neural Network Espresso",
         ingredients: [
           "Double shot espresso",
@@ -107,7 +136,25 @@ Respond in JSON format:
         ],
         instructions: "1. Pull a double shot of espresso into a 6oz cup. 2. Steam whole milk to 150°F with microfoam. 3. Add 0.5oz vanilla syrup to espresso. 4. Pour steamed milk creating latte art. 5. Dust with cinnamon powder and serve immediately."
       };
+      if (userIngredients) {
+        const requested = userIngredients.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        for (const req of requested) {
+          if (!base.ingredients.some(i => i.toLowerCase().includes(req.toLowerCase()))) {
+            base.ingredients.unshift(this.normalizeIngredient(req));
+          }
+        }
+        base.instructions = `Start by preparing user ingredients: ${requested.join(', ')}.\n` + base.instructions;
+      }
+      return base;
     }
+  }
+
+  private normalizeIngredient(raw: string): string {
+    const r = raw.toLowerCase();
+    if (r === 'milk') return 'Whole milk';
+    if (r === 'sugar') return 'Brown sugar';
+    if (r === 'coffee') return 'Freshly ground espresso beans';
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
   }
 
   async generateAutoRecipe(): Promise<GeneratedRecipe> {

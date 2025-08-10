@@ -86,6 +86,12 @@ class MemoryStorageService {
       message.votes += voteType === 'up' ? 1 : -1;
     }
   }
+
+  async clearAll(): Promise<void> {
+    this.messages = [];
+    this.recipes = [];
+    this.votes.clear();
+  }
 }
 
 export const memoryStorage = new MemoryStorageService();
